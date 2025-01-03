@@ -19,8 +19,8 @@ export default function BlackHole() {
         <div className="w-full max-w-xs mb-8">
           {/* Replace the below URL with the actual URL of the black hole GIF */}
           <img
-            src="https://media.giphy.com/media/xT0xep9KFZnX8qlQO8/giphy.gif"
-            alt=""
+            src="black-hole-gif-3.gif"
+            alt="blackhole"
             className="w-full rounded-lg shadow-lg"
           />
         </div>

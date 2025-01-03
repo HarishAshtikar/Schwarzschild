@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import defaultTheme from 'tailwindcss/defaultTheme';
 
 export default {
     darkMode: ["class"],
@@ -51,6 +52,10 @@ export default {
   				'5': 'hsl(var(--chart-5))'
   			}
   		},
+		fontFamily: {
+			mono: ['var(--font-major-mono-display)', ...defaultTheme.fontFamily.mono],
+			spacemono: ['var(--font-space-mono)', ...defaultTheme.fontFamily.mono],
+		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

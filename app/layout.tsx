@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Major_Mono_Display, Space_Mono} from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -10,6 +10,18 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const majorMonoDisplay = Major_Mono_Display({
+  subsets: ['latin'], // Specify subsets for the font
+  weight: '400', // Define the weight (required)
+  variable: '--font-major-mono-display', // Define a CSS variable for the font
+});
+
+const spaceMono = Space_Mono({
+  subsets: ['latin'], // Specify subsets for the font
+  weight: ['400', '700'], // Specify the font weights you need
+  variable: '--font-space-mono', // Define a CSS variable for the font
 });
 
 export const metadata: Metadata = {
@@ -23,12 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+    <html lang="en" className={`${spaceMono.variable} ${majorMonoDisplay.variable} ${geistSans.variable} ${geistMono.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }

@@ -23,7 +23,7 @@ export default function RadiusCalc() {
     <section
       className="
         flex flex-col p-8 px-32 justify-center items-center
-        h-full bg-black text-white
+        h-full bg-black text-white 
       "
     >
 
@@ -37,7 +37,7 @@ export default function RadiusCalc() {
         id="mass"
         placeholder="Enter mass in kilograms"
         className="
-          w-full rounded-lg p-4 text-black 
+          w-full rounded-lg p-4 text-black text-center
           focus:outline-none focus:ring-4 focus:ring-red-500 
           shadow-inner mb-6
         "
