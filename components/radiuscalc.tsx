@@ -5,6 +5,7 @@ import { useState } from "react";
 export default function RadiusCalc() {
   const [mass, setMass] = useState("");
   const [radius, setRadius] = useState<number | null>(null);
+  const [visible, setVisible] = useState(false);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setMass(event.target.value);
@@ -14,8 +15,10 @@ export default function RadiusCalc() {
     if (mass) {
       const num = parseFloat(mass); // Convert the Input string to a number
       setRadius((2 * (6.67430 * 10 ** -11) * num) / 299792458 ** 2);
+      setVisible(true);
     } else {
       setRadius(null);
+      setVisible(false);
     }
   };
 
@@ -27,8 +30,8 @@ export default function RadiusCalc() {
       "
     >
 
-      <p className="text-sm text-gray-400 mb-6 text-center">
-        Calculate the Schwarzschild radius for any given mass.
+      <p className="text-xl text-gray-400 mb-8 text-center">
+        Calculate the Schwarzschild Radius for any given mass.
       </p>
       
       <input
@@ -37,9 +40,9 @@ export default function RadiusCalc() {
         id="mass"
         placeholder="Enter mass in kilograms"
         className="
-          w-full rounded-lg p-4 text-black text-center
+          w-full rounded-lg p-6 text-black text-center
           focus:outline-none focus:ring-4 focus:ring-red-500 
-          shadow-inner mb-6
+          shadow-inner mb-8
         "
         value={mass} // Controlled input
         onChange={handleInputChange} // Update state on input change
@@ -47,24 +50,34 @@ export default function RadiusCalc() {
 
       <button
         className="
-          bg-gradient-to-r from-orange-500 to-red-600 text-white 
-          px-6 py-2 rounded-lg shadow-lg 
-          hover:from-orange-400 hover:to-red-500 
-          transition-all
-        "
+        relative px-8 py-4 rounded-lg shadow-lg text-white overflow-hidden
+        bg-gradient-to-r from-orange-500 via-red-500 to-orange-600 
+        hover:bg-gradient-to-r hover:from-orange-400 hover:via-red-400 hover:to-orange-500
+        transition-[background-position] duration-700 ease-in-out
+      "
         onClick={handleCalc} // Handle the submit action
       >
         Calculate
       </button>
 
-      {radius !== null && (
-        <div className="mt-8 text-center">
-          <p className="text-lg">Schwarzschild Radius:</p>
-          <p className="text-2xl font-bold text-orange-400 mt-2">
-            {radius.toExponential(2)} m
-          </p>
-        </div>
-      )}
+      
+
+      <div
+        className={`
+          mt-10 text-center transition-opacity duration-700 min-h-20
+          ${visible ? 'opacity-100' : 'opacity-0'}
+        `}
+         // Set a minimum height to prevent shifting
+      >
+        {radius !== null && (
+          <>
+            <p className="text-xl">Schwarzschild Radius:</p>
+            <p className="text-3xl font-bold text-orange-400 mt-2">
+              {radius.toExponential(2)} m
+            </p>
+          </>
+        )}
+      </div>
     </section>
   );
 }

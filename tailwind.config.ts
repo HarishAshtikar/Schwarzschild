@@ -55,6 +55,7 @@ export default {
 		fontFamily: {
 			mono: ['var(--font-major-mono-display)', ...defaultTheme.fontFamily.mono],
 			spacemono: ['var(--font-space-mono)', ...defaultTheme.fontFamily.mono],
+			gabarito: ['var(--font-gabarito)', ...defaultTheme.fontFamily.mono]
 		},
   		borderRadius: {
   			lg: 'var(--radius)',
