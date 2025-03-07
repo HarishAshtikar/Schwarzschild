@@ -15,14 +15,19 @@ export default function BlackHole() {
       "
     >
       
-      <h1 className="text-5xl font-bold mb-4 text-center cursor-pointer hover:text-orange-500"
-          onClick={() => setShowInfoCard(true)}>
+      <h1
+        className="
+          text-5xl font-bold mb-4 text-center cursor-pointer hover:text-orange-500
+          border-b-2 border-dashed hover:border-orange-500
+        "
+        onClick={() => setShowInfoCard(true)}
+      >
         Schwarzschild
       </h1>
 
       {showInfoCard && (
         <div className="absolute left-0 bottom-0 w-1/2 h-full bg-black bg-opacity-80 z-50 animate-slideUp">
-          <div className="relative bg-gray-800 p-8 h-full overflow-y-auto text-center">
+          <div className="relative bg-neutral-900 p-8 h-full overflow-y-auto text-center">
             {/* Close Button */}
             <button
               className="absolute top-2 right-2 text-white text-2xl font-bold"
@@ -39,9 +44,14 @@ export default function BlackHole() {
               black hole to its event horizon—the point beyond which nothing can
               escape.
             </p>
+            <div className="flex justify-center items-center">
             <p className="mb-4 text-gray-300">
-              Formula: r<sub>s</sub> = <span className="text-lg">(2GM)/(c²)</span>
+              Formula: 
+              
+                <img src="SRformula.png" alt="schwarzschild-formula" className="w-auto mx-auto" />
+              
             </p>
+            </div>
             <p className="text-gray-300">
               This calculator lets you compute the Schwarzschild radius for a given
               mass, giving insight into the nature of black holes.
