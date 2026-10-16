@@ -1,6 +1,20 @@
 export const G = 6.6743e-11; // gravitational constant, m^3 kg^-1 s^-2
 export const C = 299792458; // speed of light, m/s
 
+export type UnitSystem = "metric" | "imperial";
+
+const LB = 0.45359237; // kg per pound
+export const FT = 0.3048; // metres per foot
+const IN = 0.0254;
+const MI = 1609.344;
+
+export const massToKg = (value: number, system: UnitSystem) => (system === "imperial" ? value * LB : value);
+export const kgToMass = (kg: number, system: UnitSystem) => (system === "imperial" ? kg / LB : kg);
+export const massUnit = (system: UnitSystem) => (system === "imperial" ? "lb" : "kg");
+/** Radius expressed in the main unit of the chosen system. */
+export const lengthValue = (metres: number, system: UnitSystem) => (system === "imperial" ? metres / FT : metres);
+export const lengthUnit = (system: UnitSystem) => (system === "imperial" ? "ft" : "m");
+
 export const schwarzschildRadius = (massKg: number) => (2 * G * massKg) / C ** 2;
 
 // Everyday (and not so everyday) things to compare a radius against, in metres.
@@ -60,10 +74,12 @@ export function formatMultiple(x: number) {
   return `${(x / 10 ** exp).toFixed(1)} × 10${superscript(exp)}`;
 }
 
-export function formatMass(kg: number) {
-  if (kg >= 0.01 && kg < 1e6) return `${kg.toLocaleString("en-US", { maximumFractionDigits: 2 })} kg`;
-  const exp = Math.floor(Math.log10(kg));
-  return `${(kg / 10 ** exp).toFixed(2)} × 10${superscript(exp)} kg`;
+export function formatMass(kg: number, system: UnitSystem = "metric") {
+  const value = kgToMass(kg, system);
+  const unit = massUnit(system);
+  if (value >= 0.01 && value < 1e6) return `${value.toLocaleString("en-US", { maximumFractionDigits: value >= 1000 ? 0 : 2 })} ${unit}`;
+  const exp = Math.floor(Math.log10(value));
+  return `${(value / 10 ** exp).toFixed(2)} × 10${superscript(exp)} ${unit}`;
 }
 
 export interface SizeDescription {
@@ -144,4 +160,24 @@ export function metricLength(metres: number): string | null {
   const value = plainDecimal(metres / 10 ** (group * 3));
   if (value === null) return null;
   return `${value} ${SI_PREFIXES[group + 8]}meters`;
+}
+
+const LIGHT_YEAR = 9.461e15;
+
+/** A friendlier second unit: metric prefixes, or inches / miles for imperial. null when it adds nothing. */
+export function friendlyLength(metres: number, system: UnitSystem): string | null {
+  if (system === "metric") return metricLength(metres);
+  if (metres >= LIGHT_YEAR) {
+    const ly = plainDecimal(metres / LIGHT_YEAR);
+    return ly && `${ly} light-years`;
+  }
+  if (metres >= MI) {
+    const miles = plainDecimal(metres / MI);
+    return miles && `${miles} miles`;
+  }
+  if (metres < FT) {
+    const inches = plainDecimal(metres / IN);
+    return inches && `${inches} inches`;
+  }
+  return null; // already shown in feet
 }

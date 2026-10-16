@@ -1,21 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import RadiusReadout from "@/components/radiusreadout";
-import { schwarzschildRadius } from "@/lib/physics";
+import { UnitToggle, useUnits } from "@/components/units";
+import { kgToMass, massToKg, schwarzschildRadius } from "@/lib/physics";
 
 export default function RadiusCalc() {
   const [mass, setMass] = useState("");
   const [radius, setRadius] = useState<number | null>(null);
   const [error, setError] = useState(false);
+  const { system } = useUnits();
+  const prevSystem = useRef(system);
+  const kgRef = useRef<number | null>(null); // exact value, so unit round trips don't drift
+
+  // Keep what's typed in step with the unit switch (e.g. 154 lb -> 69.85 kg).
+  useEffect(() => {
+    if (prevSystem.current === system) return;
+    if (kgRef.current !== null) setMass(String(Number(kgToMass(kgRef.current, system).toPrecision(6))));
+    prevSystem.current = system;
+  }, [system]);
 
   const handleCalc = (event: React.FormEvent) => {
     event.preventDefault();
     const num = parseFloat(mass);
     if (Number.isFinite(num) && num > 0) {
       setError(false);
-      setRadius(schwarzschildRadius(num));
+      setRadius(schwarzschildRadius(massToKg(num, system)));
     } else {
       setError(mass !== "");
       setRadius(null);
@@ -32,6 +43,8 @@ export default function RadiusCalc() {
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.9, delay: 0.2, ease: "easeOut" }}
     >
+      <UnitToggle id="calc" className="mb-5" />
+
       <p className="text-lg text-gray-400 mb-6 text-center">
         Calculate the Schwarzschild Radius for any given mass.
       </p>
@@ -42,7 +55,7 @@ export default function RadiusCalc() {
           name="mass"
           id="mass"
           step="any"
-          placeholder="Enter mass in kilograms"
+          placeholder={system === "imperial" ? "Enter mass in pounds" : "Enter mass in kilograms"}
           className="
             w-full rounded-lg p-4 text-black text-center
             transition-shadow duration-300
@@ -50,7 +63,11 @@ export default function RadiusCalc() {
             shadow-inner mb-6
           "
           value={mass}
-          onChange={(e) => setMass(e.target.value)}
+          onChange={(e) => {
+            setMass(e.target.value);
+            const n = parseFloat(e.target.value);
+            kgRef.current = Number.isFinite(n) && n > 0 ? massToKg(n, system) : null;
+          }}
         />
 
         <motion.button

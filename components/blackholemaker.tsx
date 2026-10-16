@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from "rea
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import RadiusReadout from "@/components/radiusreadout";
-import { formatMass, schwarzschildRadius } from "@/lib/physics";
+import { UnitToggle, useUnits } from "@/components/units";
+import { formatMass, kgToMass, massToKg, massUnit, schwarzschildRadius } from "@/lib/physics";
 
 interface Item {
   id: string;
@@ -433,8 +434,20 @@ export default function BlackHoleMaker() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  const weight = parseFloat(weightText);
-  const weightValid = Number.isFinite(weight) && weight > 0;
+  const { system } = useUnits();
+  const prevSystem = useRef(system);
+  const kgRef = useRef<number | null>(70); // exact value, so unit round trips don't drift
+
+  // Keep the typed weight in step with the unit switch.
+  useEffect(() => {
+    if (prevSystem.current === system) return;
+    if (kgRef.current !== null) setWeightText(String(Number(kgToMass(kgRef.current, system).toPrecision(5))));
+    prevSystem.current = system;
+  }, [system]);
+
+  const typed = parseFloat(weightText);
+  const weightValid = Number.isFinite(typed) && typed > 0;
+  const weight = massToKg(typed, system); // always kg from here on
   const busy = phase !== "idle" && phase !== "done";
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -508,9 +521,12 @@ export default function BlackHoleMaker() {
               <Avatar weight={weightValid ? weight : 70} className="h-24 w-auto" />
             </Draggable>
             <div className="flex-1">
-              <label htmlFor="weight" className="text-base font-semibold">
-                Your weight
-              </label>
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="weight" className="text-base font-semibold">
+                  Your weight
+                </label>
+                <UnitToggle id="maker" className="scale-90" />
+              </div>
               <div className="mt-1.5 flex items-center gap-2">
                 <input
                   id="weight"
@@ -518,10 +534,14 @@ export default function BlackHoleMaker() {
                   min={1}
                   step="any"
                   value={weightText}
-                  onChange={(e) => setWeightText(e.target.value)}
+                  onChange={(e) => {
+                    setWeightText(e.target.value);
+                    const n = parseFloat(e.target.value);
+                    kgRef.current = Number.isFinite(n) && n > 0 ? massToKg(n, system) : null;
+                  }}
                   className="w-24 rounded-lg p-2 text-center text-base text-black transition-shadow focus:outline-none focus:ring-4 focus:ring-red-500"
                 />
-                <span className="text-sm text-gray-400">kg</span>
+                <span className="text-sm text-gray-400">{massUnit(system)}</span>
               </div>
               <p className="mt-1.5 text-xs text-gray-500">
                 {weightValid ? "Now drag your avatar into the machine." : "Enter a weight above zero."}
@@ -562,7 +582,7 @@ export default function BlackHoleMaker() {
                       >
                         <span className="text-3xl leading-none">{o.emoji}</span>
                         <span className="mt-1.5 text-center text-[11px] leading-tight text-gray-300">{o.name}</span>
-                        <span className="text-[9px] text-gray-500">{formatMass(o.mass)}</span>
+                        <span className="text-[9px] text-gray-500">{formatMass(o.mass, system)}</span>
                       </Draggable>
                     ))}
                   </div>
@@ -586,7 +606,7 @@ export default function BlackHoleMaker() {
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
                 <p className="text-base text-gray-400">
-                  {subject(item)} <span className="text-white">({formatMass(item.mass)})</span> would become a
+                  {subject(item)} <span className="text-white">({formatMass(item.mass, system)})</span> would become a
                   black hole with a radius of
                 </p>
                 <div className="mt-3">

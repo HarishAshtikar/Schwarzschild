@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import CountUp from "@/components/countup";
-import { describeSizes, metricLength, plainDecimal } from "@/lib/physics";
+import { useUnits } from "@/components/units";
+import { describeSizes, friendlyLength, lengthUnit, lengthValue, plainDecimal } from "@/lib/physics";
 
 function Or() {
   return <span className="block text-[10px] uppercase tracking-[0.3em] text-gray-600">or</span>;
@@ -61,17 +62,20 @@ function Comparisons({ radius, delay, large }: { radius: number; delay: number; 
  * prefix) plus a rotating "how small is that" comparison.
  */
 export default function RadiusReadout({ radius, large = false }: { radius: number; large?: boolean }) {
-  const full = plainDecimal(radius);
-  const metric = metricLength(radius);
+  const { system } = useUnits();
+  const value = lengthValue(radius, system);
+  const unit = lengthUnit(system);
+  const full = plainDecimal(value);
+  const metric = friendlyLength(radius, system);
 
   return (
     <div className="text-center">
       <p className={`font-bold text-orange-400 ${large ? "text-4xl md:text-5xl" : "text-2xl md:text-3xl"}`}>
-        <CountUp value={radius} /> m
+        <CountUp value={value} /> {unit}
       </p>
 
       {/* keyed so the lower rows replay on every new result while the number keeps counting */}
-      <div key={radius}>
+      <div key={`${radius}-${system}`}>
         {full && (
           <motion.div
             className={large ? "mt-4" : "mt-2"}
@@ -86,7 +90,7 @@ export default function RadiusReadout({ radius, large = false }: { radius: numbe
               animate={{ clipPath: "inset(0 0% 0 0)" }}
               transition={{ delay: 1.4, duration: 1.2, ease: "easeInOut" }}
             >
-              {full} m
+              {full} {unit}
             </motion.p>
           </motion.div>
         )}
