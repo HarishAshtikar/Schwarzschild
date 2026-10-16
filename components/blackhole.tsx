@@ -71,7 +71,7 @@ export default function BlackHole() {
           {showTooltip && (
             <span className="absolute border-orange-500 border-2 text-white text-sm 
             p-1 rounded-lg shadow-lg mt-10 left-1/2 transform -translate-x-1/2 w-60">
-              Calc is short for calculator. <br></br>I'm just using slang.
+              Calc is short for calculator. <br></br>I&apos;m just using slang.
             </span>
           )}
         </span>
