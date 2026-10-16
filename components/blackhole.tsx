@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Info } from "lucide-react";
 import Equation from "@/components/equation";
 
 const cardItem = {
@@ -28,20 +29,39 @@ export default function BlackHole() {
         h-full text-white
       "
     >
-      <motion.h1
-        className="
-          text-5xl font-bold mb-4 text-center cursor-pointer
-          border-b-2 border-dashed transition-colors duration-300
-          hover:text-orange-500 hover:border-orange-500
-        "
+      <motion.div
+        className="mb-4 flex flex-col items-center gap-2"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
-        whileTap={{ scale: 0.97 }}
-        onClick={() => setShowInfoCard(true)}
       >
-        Schwarzschild
-      </motion.h1>
+        <motion.button
+          type="button"
+          className="
+            group flex items-center gap-3 rounded-full border border-orange-500/50
+            bg-orange-500/10 px-7 py-2 text-center transition-colors duration-300
+            hover:border-orange-400 hover:bg-orange-500/20 focus:outline-none
+            focus-visible:ring-4 focus-visible:ring-orange-500/50
+          "
+          animate={{
+            boxShadow: [
+              "0 0 0 0 rgba(249,115,22,0.35)",
+              "0 0 0 12px rgba(249,115,22,0)",
+            ],
+          }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.96 }}
+          aria-label="About Schwarzschild"
+          onClick={() => setShowInfoCard(true)}
+        >
+          <h1 className="text-5xl font-bold transition-colors duration-300 group-hover:text-orange-400">
+            Schwarzschild
+          </h1>
+          <Info className="h-6 w-6 shrink-0 text-orange-400" aria-hidden />
+        </motion.button>
+        <p className="text-sm text-gray-500">Click to read what this is</p>
+      </motion.div>
 
       <AnimatePresence>
         {showInfoCard && (
@@ -146,7 +166,7 @@ export default function BlackHole() {
         <motion.img
           src="black-hole-gif-3.gif"
           alt="blackhole"
-          className="w-full rounded-lg shadow-lg shadow-orange-500/10"
+          className="w-full"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         />
