@@ -10,7 +10,7 @@ function Or() {
 }
 
 /** Cycles through a handful of comparisons so the size is described in different ways. */
-function Comparisons({ radius, delay }: { radius: number; delay: number }) {
+function Comparisons({ radius, delay, large }: { radius: number; delay: number; large: boolean }) {
   const sizes = describeSizes(radius);
   const [index, setIndex] = useState(0);
 
@@ -23,12 +23,12 @@ function Comparisons({ radius, delay }: { radius: number; delay: number }) {
   const current = sizes[index % sizes.length];
   return (
     <motion.div
-      className="mt-3"
+      className={large ? "mt-5" : "mt-3"}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5 }}
     >
-      <div className="min-h-[3.25rem]">
+      <div className={large ? "min-h-[4.5rem]" : "min-h-[3.25rem]"}>
         <AnimatePresence mode="wait">
           <motion.div
             key={index}
@@ -37,8 +37,8 @@ function Comparisons({ radius, delay }: { radius: number; delay: number }) {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.35 }}
           >
-            <p className="text-lg text-white">{current.headline}</p>
-            <p className="text-sm text-gray-400">{current.detail}</p>
+            <p className={large ? "text-2xl text-white" : "text-lg text-white"}>{current.headline}</p>
+            <p className={large ? "mt-0.5 text-base text-gray-400" : "text-sm text-gray-400"}>{current.detail}</p>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -60,13 +60,13 @@ function Comparisons({ radius, delay }: { radius: number; delay: number }) {
  * A radius in metres shown three ways (scientific, written out in full, metric
  * prefix) plus a rotating "how small is that" comparison.
  */
-export default function RadiusReadout({ radius }: { radius: number }) {
+export default function RadiusReadout({ radius, large = false }: { radius: number; large?: boolean }) {
   const full = plainDecimal(radius);
   const metric = metricLength(radius);
 
   return (
     <div className="text-center">
-      <p className="text-2xl font-bold text-orange-400 md:text-3xl">
+      <p className={`font-bold text-orange-400 ${large ? "text-4xl md:text-5xl" : "text-2xl md:text-3xl"}`}>
         <CountUp value={radius} /> m
       </p>
 
@@ -74,14 +74,14 @@ export default function RadiusReadout({ radius }: { radius: number }) {
       <div key={radius}>
         {full && (
           <motion.div
-            className="mt-2"
+            className={large ? "mt-4" : "mt-2"}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.4, duration: 0.3 }}
           >
             <Or />
             <motion.p
-              className="font-spacemono text-base text-orange-200/90 [overflow-wrap:anywhere]"
+              className={`font-spacemono text-orange-200/90 [overflow-wrap:anywhere] ${large ? (full.length > 34 ? "text-base" : "text-xl") : "text-base"}`}
               initial={{ clipPath: "inset(0 100% 0 0)" }}
               animate={{ clipPath: "inset(0 0% 0 0)" }}
               transition={{ delay: 1.4, duration: 1.2, ease: "easeInOut" }}
@@ -92,16 +92,16 @@ export default function RadiusReadout({ radius }: { radius: number }) {
         )}
         {metric && (
           <motion.div
-            className="mt-2"
+            className={large ? "mt-4" : "mt-2"}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 2.2, duration: 0.5 }}
           >
             <Or />
-            <p className="text-lg text-orange-200/90">{metric}</p>
+            <p className={`text-orange-200/90 ${large ? "text-2xl" : "text-lg"}`}>{metric}</p>
           </motion.div>
         )}
-        <Comparisons radius={radius} delay={2.8} />
+        <Comparisons radius={radius} delay={2.8} large={large} />
       </div>
     </div>
   );

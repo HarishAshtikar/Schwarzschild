@@ -574,26 +574,26 @@ export default function BlackHoleMaker() {
         </div>
 
         {/* result (bottom right) */}
-        <div ref={resultRef} className="min-h-0 text-center lg:col-start-2 lg:row-start-2" aria-live="polite">
+        <div ref={resultRef} className="min-h-0 text-center lg:col-start-2 lg:row-start-2 [&>div]:h-full" aria-live="polite">
           <AnimatePresence mode="wait">
             {result && item ? (
               <motion.div
                 key={item.id + "result"}
-                className="rounded-2xl border border-white/10 bg-neutral-900/80 p-4"
+                className="flex h-full flex-col items-center justify-center rounded-2xl border border-white/10 bg-neutral-900/80 p-5"
                 initial={{ opacity: 0, y: 24, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 12 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
-                <p className="text-sm text-gray-400">
+                <p className="text-base text-gray-400">
                   {subject(item)} <span className="text-white">({formatMass(item.mass)})</span> would become a
                   black hole with a radius of
                 </p>
-                <div className="mt-2">
-                  <RadiusReadout radius={result.radius} />
+                <div className="mt-3">
+                  <RadiusReadout radius={result.radius} large />
                 </div>
                 <motion.button
-                  className="mt-3 rounded-lg border border-orange-500/60 px-5 py-1.5 text-sm text-orange-300 transition-colors hover:bg-orange-500 hover:text-white"
+                  className="mt-5 rounded-lg border border-orange-500/60 px-6 py-2 text-base text-orange-300 transition-colors hover:bg-orange-500 hover:text-white"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={reset}
