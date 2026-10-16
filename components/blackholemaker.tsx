@@ -2,29 +2,64 @@
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import CountUp from "@/components/countup";
-import { describeSize, formatMass, schwarzschildRadius } from "@/lib/physics";
+import RadiusReadout from "@/components/radiusreadout";
+import { formatMass, schwarzschildRadius } from "@/lib/physics";
 
 interface Item {
   id: string;
   name: string;
   emoji: string;
   mass: number; // kg
+  the?: boolean; // "The Moon" rather than "Moon"
 }
 
-const OBJECTS: Item[] = [
-  { id: "peanut", name: "Peanut", emoji: "🥜", mass: 1e-3 },
-  { id: "car", name: "Car", emoji: "🚗", mass: 1.5e3 },
-  { id: "elephant", name: "Elephant", emoji: "🐘", mass: 6e3 },
-  { id: "whale", name: "Blue whale", emoji: "🐋", mass: 1.5e5 },
-  { id: "airplane", name: "Boeing 747", emoji: "✈️", mass: 3.6e5 },
-  { id: "mountain", name: "Mount Everest", emoji: "🏔️", mass: 1.6e14 },
-  { id: "moon", name: "The Moon", emoji: "🌙", mass: 7.342e22 },
-  { id: "earth", name: "Earth", emoji: "🌍", mass: 5.972e24 },
-  { id: "jupiter", name: "Jupiter", emoji: "🪐", mass: 1.898e27 },
-  { id: "sun", name: "The Sun", emoji: "☀️", mass: 1.989e30 },
-  { id: "galaxy", name: "Milky Way", emoji: "🌌", mass: 2.98e42 },
+const SUN = 1.989e30;
+
+const GROUPS: { title: string; items: Item[] }[] = [
+  {
+    title: "Everyday things",
+    items: [
+      { id: "peanut", name: "Peanut", emoji: "🥜", mass: 1e-3, the: true },
+      { id: "car", name: "Car", emoji: "🚗", mass: 1.5e3, the: true },
+      { id: "elephant", name: "Elephant", emoji: "🐘", mass: 6e3, the: true },
+      { id: "whale", name: "Blue whale", emoji: "🐋", mass: 1.5e5, the: true },
+      { id: "airplane", name: "Boeing 747", emoji: "✈️", mass: 3.6e5, the: true },
+    ],
+  },
+  {
+    title: "Monuments",
+    items: [
+      { id: "liberty", name: "Statue of Liberty", emoji: "🗽", mass: 2.04e5, the: true },
+      { id: "eiffel", name: "Eiffel Tower", emoji: "🗼", mass: 1.01e7, the: true },
+      { id: "empire", name: "Empire State Building", emoji: "🏢", mass: 3.3e8, the: true },
+      { id: "burj", name: "Burj Khalifa", emoji: "🏙️", mass: 5e8 },
+      { id: "pyramid", name: "Great Pyramid", emoji: "🔺", mass: 5.75e9, the: true },
+    ],
+  },
+  {
+    title: "Planets & space",
+    items: [
+      { id: "mountain", name: "Mount Everest", emoji: "🏔️", mass: 1.6e14 },
+      { id: "moon", name: "Moon", emoji: "🌙", mass: 7.342e22, the: true },
+      { id: "earth", name: "Earth", emoji: "🌍", mass: 5.972e24 },
+      { id: "jupiter", name: "Jupiter", emoji: "🪐", mass: 1.898e27 },
+      { id: "sun", name: "Sun", emoji: "☀️", mass: SUN, the: true },
+      { id: "galaxy", name: "Milky Way", emoji: "🌌", mass: 2.98e42, the: true },
+    ],
+  },
+  {
+    title: "The biggest stars we know",
+    items: [
+      { id: "antares", name: "Antares", emoji: "⭐", mass: 12 * SUN },
+      { id: "betelgeuse", name: "Betelgeuse", emoji: "🌟", mass: 18 * SUN },
+      { id: "vycma", name: "VY Canis Majoris", emoji: "💫", mass: 17 * SUN },
+      { id: "uyscuti", name: "UY Scuti", emoji: "✨", mass: 10 * SUN },
+      { id: "r136a1", name: "R136a1 (most massive)", emoji: "🔆", mass: 196 * SUN },
+    ],
+  },
 ];
+
+const subject = (item: Item) => (item.id === "avatar" ? "You" : item.the ? `The ${item.name}` : item.name);
 
 type Phase = "idle" | "falling" | "shrinking" | "collapse" | "done";
 
@@ -145,7 +180,7 @@ function Machine({
   return (
     <motion.div
       ref={machineRef}
-      className="relative mx-auto w-full max-w-md"
+      className="relative mx-auto w-full max-w-sm"
       animate={
         active
           ? { x: [0, -3, 3, -2, 2, 0], y: [0, 2, -2, 1, -1, 0] }
@@ -154,7 +189,7 @@ function Machine({
       transition={active ? { duration: 0.25, repeat: Infinity } : { duration: 0.3 }}
     >
       {/* hopper */}
-      <div className="relative mx-auto h-20 w-[85%]">
+      <div className="relative mx-auto h-16 w-[85%]">
         <div
           className={`absolute inset-0 transition-colors duration-300 ${hovering ? "bg-orange-500" : "bg-neutral-700"}`}
           style={{ clipPath: "polygon(0 0, 100% 0, 78% 100%, 22% 100%)" }}
@@ -183,7 +218,7 @@ function Machine({
 
       {/* chamber */}
       <motion.div
-        className="relative mx-auto h-72 overflow-hidden rounded-3xl border-2 bg-gradient-to-b from-neutral-900 to-black"
+        className="relative mx-auto h-64 overflow-hidden rounded-3xl border-2 bg-gradient-to-b from-neutral-900 to-black"
         animate={{
           borderColor: hovering ? "#f97316" : active ? "#ef4444" : "#404040",
           boxShadow: active
@@ -345,7 +380,6 @@ export default function BlackHoleMaker() {
   };
 
   const result = phase === "done" && item ? { radius: schwarzschildRadius(item.mass) } : null;
-  const size = result ? describeSize(result.radius) : null;
 
   const drag = (chosen: Item) => ({
     machineRef,
@@ -355,9 +389,9 @@ export default function BlackHoleMaker() {
   });
 
   return (
-    <section id="machine" className="relative px-6 py-24 md:px-16">
+    <section id="machine" className="relative px-6 py-16 md:px-16">
       <motion.div
-        className="mx-auto mb-14 max-w-2xl text-center"
+        className="mx-auto mb-10 max-w-2xl text-center"
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
@@ -383,36 +417,26 @@ export default function BlackHoleMaker() {
             hovering={hovering && !busy}
           />
 
-          <div ref={resultRef} className="mt-8 min-h-48 text-center" aria-live="polite">
+          <div ref={resultRef} className="mt-6 min-h-48 text-center" aria-live="polite">
             <AnimatePresence>
-              {result && item && size && (
+              {result && item && (
                 <motion.div
                   key={item.id + "result"}
-                  className="rounded-2xl border border-white/10 bg-neutral-900/80 p-6"
+                  className="rounded-2xl border border-white/10 bg-neutral-900/80 p-5"
                   initial={{ opacity: 0, y: 24, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 12 }}
                   transition={{ duration: 0.6, ease: "easeOut" }}
                 >
-                  <p className="text-gray-400">
-                    {item.id === "avatar" ? "You" : `The ${item.name.replace(/^The /, "")}`}{" "}
-                    <span className="text-white">({formatMass(item.mass)})</span> would become a black hole with a
-                    radius of
+                  <p className="text-sm text-gray-400">
+                    {subject(item)} <span className="text-white">({formatMass(item.mass)})</span> would become a
+                    black hole with a radius of
                   </p>
-                  <p className="mt-2 text-4xl font-bold text-orange-400">
-                    <CountUp value={result.radius} /> m
-                  </p>
-                  <motion.div
-                    className="mt-5"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.2, duration: 0.5 }}
-                  >
-                    <p className="text-xl">{size.headline}</p>
-                    <p className="mt-1 text-gray-400">{size.detail}</p>
-                  </motion.div>
+                  <div className="mt-2">
+                    <RadiusReadout radius={result.radius} />
+                  </div>
                   <motion.button
-                    className="mt-6 rounded-lg border border-orange-500/60 px-6 py-2 text-orange-300 transition-colors hover:bg-orange-500 hover:text-white"
+                    className="mt-4 rounded-lg border border-orange-500/60 px-5 py-1.5 text-sm text-orange-300 transition-colors hover:bg-orange-500 hover:text-white"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={reset}
@@ -463,31 +487,38 @@ export default function BlackHoleMaker() {
             </div>
           </motion.div>
 
-          <div>
-            <h3 className="mb-4 text-lg font-semibold">…or pick something bigger</h3>
-            <motion.div
-              className="grid grid-cols-3 gap-3 sm:grid-cols-4"
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true }}
-              transition={{ staggerChildren: 0.05 }}
-            >
-              {OBJECTS.map((o) => (
+          <div className="flex flex-col gap-6">
+            {GROUPS.map((group) => (
+              <div key={group.title}>
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-widest text-gray-400">
+                  {group.title}
+                </h3>
                 <motion.div
-                  key={o.id}
-                  variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+                  className="grid grid-cols-3 gap-2 sm:grid-cols-5"
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true }}
+                  transition={{ staggerChildren: 0.05 }}
                 >
-                  <Draggable
-                    {...drag(o)}
-                    className="flex flex-col items-center rounded-xl border border-white/10 bg-neutral-900/60 px-2 py-3 hover:border-orange-500/60"
-                  >
-                    <span className="text-4xl leading-none">{o.emoji}</span>
-                    <span className="mt-2 text-center text-xs text-gray-300">{o.name}</span>
-                    <span className="text-[10px] text-gray-500">{formatMass(o.mass)}</span>
-                  </Draggable>
+                  {group.items.map((o) => (
+                    <motion.div
+                      key={o.id}
+                      variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+                    >
+                      <Draggable
+                        {...drag(o)}
+                        className="flex h-full flex-col items-center rounded-xl border border-white/10 bg-neutral-900/60 px-1.5 py-2 hover:border-orange-500/60"
+                      >
+                        <span className="text-3xl leading-none">{o.emoji}</span>
+                        <span className="mt-1.5 text-center text-[11px] leading-tight text-gray-300">{o.name}</span>
+                        <span className="text-[9px] text-gray-500">{formatMass(o.mass)}</span>
+                      </Draggable>
+                    </motion.div>
+                  ))}
                 </motion.div>
-              ))}
-            </motion.div>
+              </div>
+            ))}
+            <p className="text-xs text-gray-600">Star masses are estimates and vary between studies.</p>
           </div>
         </div>
       </div>

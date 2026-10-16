@@ -11,6 +11,8 @@ const REFERENCES: [name: string, size: number][] = [
   ["an atom", 1e-10],
   ["a strand of DNA", 2e-9],
   ["a virus", 1e-7],
+  ["a human hair's width", 7e-5],
+  ["a bacterium", 2e-6],
   ["a red blood cell", 8e-6],
   ["a grain of sand", 5e-4],
   ["a peanut", 0.02],
@@ -18,13 +20,21 @@ const REFERENCES: [name: string, size: number][] = [
   ["a basketball", 0.24],
   ["a person", 1.7],
   ["a bus", 12],
+  ["a blue whale", 25],
+  ["a Boeing 747", 70.6],
+  ["the Statue of Liberty", 93],
   ["a football field", 100],
+  ["the Great Pyramid", 139],
   ["the Eiffel Tower", 330],
+  ["the Empire State Building", 443],
+  ["the Burj Khalifa", 828],
   ["Mount Everest", 8849],
   ["the length of Manhattan", 21500],
   ["the Earth", 6.371e6],
   ["Jupiter", 6.99e7],
   ["the Sun", 6.957e8],
+  ["the star Betelgeuse", 5.5e11],
+  ["the star UY Scuti", 1.18e12],
   ["the distance from Earth to the Sun", 1.496e11],
   ["the Solar System", 9e12],
   ["a light-year", 9.461e15],
@@ -61,27 +71,8 @@ export interface SizeDescription {
   detail: string;
 }
 
-export function describeSize(radius: number): SizeDescription {
-  const [first] = REFERENCES;
-  if (radius < first[1] * 0.7) {
-    return {
-      headline: `Smaller than ${first[0]}`,
-      detail: "Far below the smallest length physics can meaningfully describe.",
-    };
-  }
-
-  let best = REFERENCES[0];
-  let bestDist = Infinity;
-  for (const ref of REFERENCES) {
-    const dist = Math.abs(Math.log10(radius / ref[1]));
-    if (dist < bestDist) {
-      best = ref;
-      bestDist = dist;
-    }
-  }
-  const [name, size] = best;
+function compare(radius: number, [name, size]: [string, number]): SizeDescription {
   const ratio = radius / size;
-
   if (ratio >= 0.7 && ratio <= 1.4) {
     return { headline: `About the size of ${name}`, detail: "Give or take a little." };
   }
@@ -95,4 +86,62 @@ export function describeSize(radius: number): SizeDescription {
     headline: `Bigger than ${name}`,
     detail: `Roughly ${formatMultiple(ratio)}× bigger than ${name}.`,
   };
+}
+
+/** The few closest comparisons, nearest first, so the UI can cycle through them. */
+export function describeSizes(radius: number, count = 4): SizeDescription[] {
+  const planck = REFERENCES[0];
+  if (radius < planck[1] * 0.7) {
+    return [
+      {
+        headline: `Smaller than ${planck[0]}`,
+        detail: "Far below the smallest length physics can meaningfully describe.",
+      },
+    ];
+  }
+  return [...REFERENCES]
+    .sort((a, b) => Math.abs(Math.log10(radius / a[1])) - Math.abs(Math.log10(radius / b[1])))
+    .slice(0, count)
+    .map((ref) => compare(radius, ref));
+}
+
+/* ------------------------- number representations ------------------------- */
+
+const MAX_DIGITS = 60;
+
+/** Three significant digits and the decimal exponent of x (x > 0). */
+function sig3(x: number) {
+  let exp = Math.floor(Math.log10(x));
+  let mantissa = x / 10 ** exp;
+  if (Number(mantissa.toFixed(2)) >= 10) {
+    mantissa /= 10;
+    exp += 1;
+  }
+  return { digits: mantissa.toFixed(2).replace(".", ""), exp };
+}
+
+/** x written out in full to three significant figures, e.g. 0.0000149. null if absurdly long. */
+export function plainDecimal(x: number): string | null {
+  const { digits, exp } = sig3(x);
+  if (Math.abs(exp) > MAX_DIGITS) return null;
+  if (exp < 0) return "0." + "0".repeat(-exp - 1) + digits.replace(/0+$/, "");
+  if (exp === 0) return `${digits[0]}.${digits.slice(1)}`.replace(/\.?0+$/, "");
+  if (exp === 1) return `${digits.slice(0, 2)}.${digits[2]}`.replace(/\.0$/, "");
+  const whole = digits + "0".repeat(exp - 2);
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+const SI_PREFIXES = [
+  "yocto", "zepto", "atto", "femto", "pico", "nano", "micro", "milli",
+  "", "kilo", "mega", "giga", "tera", "peta", "exa", "zetta", "yotta",
+];
+
+/** A length with a metric prefix, e.g. "14.9 micrometers". null when it adds nothing over plain metres. */
+export function metricLength(metres: number): string | null {
+  const { exp } = sig3(metres);
+  const group = Math.min(8, Math.max(-8, Math.floor(exp / 3)));
+  if (group === 0) return null;
+  const value = plainDecimal(metres / 10 ** (group * 3));
+  if (value === null) return null;
+  return `${value} ${SI_PREFIXES[group + 8]}meters`;
 }

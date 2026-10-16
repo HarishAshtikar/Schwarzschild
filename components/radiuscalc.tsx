@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import CountUp from "@/components/countup";
-import { describeSize, schwarzschildRadius } from "@/lib/physics";
+import RadiusReadout from "@/components/radiusreadout";
+import { schwarzschildRadius } from "@/lib/physics";
 
 export default function RadiusCalc() {
   const [mass, setMass] = useState("");
@@ -22,19 +22,17 @@ export default function RadiusCalc() {
     }
   };
 
-  const size = radius !== null ? describeSize(radius) : null;
-
   return (
     <motion.section
       className="
-        flex flex-col py-12 px-6 md:px-16 justify-center items-center
+        flex flex-col py-10 px-6 md:px-16 justify-center items-center
         h-full text-white
       "
       initial={{ opacity: 0, x: 30 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.9, delay: 0.2, ease: "easeOut" }}
     >
-      <p className="text-xl text-gray-400 mb-8 text-center">
+      <p className="text-lg text-gray-400 mb-6 text-center">
         Calculate the Schwarzschild Radius for any given mass.
       </p>
 
@@ -46,10 +44,10 @@ export default function RadiusCalc() {
           step="any"
           placeholder="Enter mass in kilograms"
           className="
-            w-full rounded-lg p-6 text-black text-center
+            w-full rounded-lg p-4 text-black text-center
             transition-shadow duration-300
             focus:outline-none focus:ring-4 focus:ring-red-500
-            shadow-inner mb-8
+            shadow-inner mb-6
           "
           value={mass}
           onChange={(e) => setMass(e.target.value)}
@@ -58,7 +56,7 @@ export default function RadiusCalc() {
         <motion.button
           type="submit"
           className="
-            px-8 py-4 rounded-lg shadow-lg text-white
+            px-7 py-3 rounded-lg shadow-lg text-white
             bg-gradient-to-r from-orange-500 via-red-500 to-orange-600
             bg-[length:200%_100%] bg-left hover:bg-right
             transition-[background-position] duration-700 ease-in-out
@@ -70,7 +68,7 @@ export default function RadiusCalc() {
         </motion.button>
       </form>
 
-      <div className="mt-10 text-center min-h-44" aria-live="polite">
+      <div className="mt-8 text-center min-h-72" aria-live="polite">
         <AnimatePresence mode="wait">
           {error && (
             <motion.p
@@ -83,7 +81,7 @@ export default function RadiusCalc() {
               Enter a mass greater than zero.
             </motion.p>
           )}
-          {radius !== null && size && (
+          {radius !== null && (
             <motion.div
               key="result"
               initial={{ opacity: 0, y: 16 }}
@@ -91,23 +89,8 @@ export default function RadiusCalc() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <p className="text-xl">Schwarzschild Radius:</p>
-              <p className="text-3xl font-bold text-orange-400 mt-2">
-                <CountUp value={radius} /> m
-              </p>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={size.headline}
-                  className="mt-6"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4, delay: 0.9 }}
-                >
-                  <p className="text-xl text-white">{size.headline}</p>
-                  <p className="text-base text-gray-400 mt-1">{size.detail}</p>
-                </motion.div>
-              </AnimatePresence>
+              <p className="mb-1 text-base text-gray-300">Schwarzschild Radius:</p>
+              <RadiusReadout radius={radius} />
             </motion.div>
           )}
         </AnimatePresence>
