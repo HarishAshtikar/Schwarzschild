@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import RadiusReadout from "@/components/radiusreadout";
 import { formatMass, schwarzschildRadius } from "@/lib/physics";
@@ -23,24 +24,26 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { id: "car", name: "Car", emoji: "🚗", mass: 1.5e3, the: true },
       { id: "elephant", name: "Elephant", emoji: "🐘", mass: 6e3, the: true },
       { id: "whale", name: "Blue whale", emoji: "🐋", mass: 1.5e5, the: true },
+      { id: "bus", name: "School bus", emoji: "🚌", mass: 1.1e4, the: true },
       { id: "airplane", name: "Boeing 747", emoji: "✈️", mass: 3.6e5, the: true },
     ],
   },
   {
-    title: "Monuments",
+    title: "Monuments & landmarks",
     items: [
       { id: "liberty", name: "Statue of Liberty", emoji: "🗽", mass: 2.04e5, the: true },
       { id: "eiffel", name: "Eiffel Tower", emoji: "🗼", mass: 1.01e7, the: true },
       { id: "empire", name: "Empire State Building", emoji: "🏢", mass: 3.3e8, the: true },
       { id: "burj", name: "Burj Khalifa", emoji: "🏙️", mass: 5e8 },
       { id: "pyramid", name: "Great Pyramid", emoji: "🔺", mass: 5.75e9, the: true },
+      { id: "mountain", name: "Mount Everest", emoji: "🏔️", mass: 1.6e14 },
     ],
   },
   {
     title: "Planets & space",
     items: [
-      { id: "mountain", name: "Mount Everest", emoji: "🏔️", mass: 1.6e14 },
       { id: "moon", name: "Moon", emoji: "🌙", mass: 7.342e22, the: true },
+      { id: "mars", name: "Mars", emoji: "🔴", mass: 6.417e23 },
       { id: "earth", name: "Earth", emoji: "🌍", mass: 5.972e24 },
       { id: "jupiter", name: "Jupiter", emoji: "🪐", mass: 1.898e27 },
       { id: "sun", name: "Sun", emoji: "☀️", mass: SUN, the: true },
@@ -51,6 +54,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     title: "The biggest stars we know",
     items: [
       { id: "antares", name: "Antares", emoji: "⭐", mass: 12 * SUN },
+      { id: "rigel", name: "Rigel", emoji: "🌠", mass: 21 * SUN },
       { id: "betelgeuse", name: "Betelgeuse", emoji: "🌟", mass: 18 * SUN },
       { id: "vycma", name: "VY Canis Majoris", emoji: "💫", mass: 17 * SUN },
       { id: "uyscuti", name: "UY Scuti", emoji: "✨", mass: 10 * SUN },
@@ -103,6 +107,11 @@ function Avatar({ weight, className }: { weight: number; className?: string }) {
 
 /* --------------------------- drag wrapper --------------------------- */
 
+/**
+ * Pointer-driven drag. The dragged copy is a "ghost" portalled to <body>, so it
+ * is never clipped by the scrolling tray. Mouse drags start after a few pixels;
+ * touch drags start after a short press so the tray can still be scrolled.
+ */
 function Draggable({
   children,
   machineRef,
@@ -118,32 +127,108 @@ function Draggable({
   onOverMachine: (over: boolean) => void;
   className?: string;
 }) {
-  const isOver = (point: { x: number; y: number }) => {
+  const sourceRef = useRef<HTMLDivElement>(null);
+  const [ghost, setGhost] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const latest = useRef({ onDropInMachine, onOverMachine });
+  latest.current = { onDropInMachine, onOverMachine };
+
+  const isOver = (x: number, y: number) => {
     const rect = machineRef.current?.getBoundingClientRect();
-    if (!rect) return false;
-    const x = point.x - window.scrollX;
-    const y = point.y - window.scrollY;
-    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    return !!rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (disabled || e.button !== 0) return;
+    const rect = sourceRef.current!.getBoundingClientRect();
+    const size = { w: rect.width, h: rect.height };
+    const start = { x: e.clientX, y: e.clientY };
+    const isTouch = e.pointerType === "touch";
+    let dragging = false;
+    let pressTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const preventScroll = (ev: TouchEvent) => ev.preventDefault();
+
+    const begin = (x: number, y: number) => {
+      dragging = true;
+      setGhost({ x, y, ...size });
+      if (isTouch) window.addEventListener("touchmove", preventScroll, { passive: false });
+    };
+
+    const cleanup = () => {
+      clearTimeout(pressTimer);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("touchmove", preventScroll);
+    };
+
+    const move = (ev: PointerEvent) => {
+      if (!dragging) {
+        const moved = Math.hypot(ev.clientX - start.x, ev.clientY - start.y);
+        if (isTouch) {
+          if (moved > 8) cleanup(); // the user is scrolling, not dragging
+        } else if (moved > 4) {
+          begin(ev.clientX, ev.clientY);
+        }
+        return;
+      }
+      setGhost({ x: ev.clientX, y: ev.clientY, ...size });
+      latest.current.onOverMachine(isOver(ev.clientX, ev.clientY));
+    };
+
+    const up = (ev: PointerEvent) => {
+      const wasDragging = dragging;
+      cleanup();
+      if (!wasDragging) return;
+      setGhost(null);
+      latest.current.onOverMachine(false);
+      if (isOver(ev.clientX, ev.clientY)) latest.current.onDropInMachine();
+    };
+
+    const cancel = () => {
+      const wasDragging = dragging;
+      cleanup();
+      if (wasDragging) {
+        setGhost(null);
+        latest.current.onOverMachine(false);
+      }
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    if (isTouch) pressTimer = setTimeout(() => begin(start.x, start.y), 250);
   };
 
   return (
-    <motion.div
-      className={`touch-none select-none ${disabled ? "opacity-40" : "cursor-grab"} ${className ?? ""}`}
-      drag={!disabled}
-      dragSnapToOrigin
-      dragMomentum={false}
-      dragElastic={0.15}
-      whileHover={disabled ? undefined : { scale: 1.08 }}
-      whileDrag={{ scale: 1.25, zIndex: 100, cursor: "grabbing" }}
-      transition={{ type: "spring", stiffness: 300, damping: 22 }}
-      onDrag={(_, info) => onOverMachine(isOver(info.point))}
-      onDragEnd={(_, info) => {
-        onOverMachine(false);
-        if (isOver(info.point)) onDropInMachine();
-      }}
-    >
-      {children}
-    </motion.div>
+    <>
+      <motion.div
+        ref={sourceRef}
+        className={`select-none [touch-action:pan-y] ${disabled ? "opacity-40" : "cursor-grab"} ${ghost ? "opacity-30" : ""} ${className ?? ""}`}
+        whileHover={disabled || ghost ? undefined : { scale: 1.08 }}
+        transition={{ type: "spring", stiffness: 300, damping: 22 }}
+        onPointerDown={handlePointerDown}
+        onDragStart={(e) => e.preventDefault()}
+      >
+        {children}
+      </motion.div>
+      {ghost &&
+        createPortal(
+          <div
+            className={`pointer-events-none fixed z-[1000] cursor-grabbing drop-shadow-[0_10px_20px_rgba(249,115,22,0.35)] ${className ?? ""}`}
+            style={{
+              left: ghost.x,
+              top: ghost.y,
+              width: ghost.w,
+              height: ghost.h,
+              transform: "translate(-50%, -50%) scale(1.2)",
+            }}
+          >
+            {children}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -172,15 +257,15 @@ function Machine({
 
   const visual =
     item?.id === "avatar" ? (
-      <Avatar weight={weight} className="h-28 w-auto" />
+      <Avatar weight={weight} className="h-20 w-auto" />
     ) : (
-      <span className="text-7xl leading-none">{item?.emoji}</span>
+      <span className="text-5xl leading-none">{item?.emoji}</span>
     );
 
   return (
     <motion.div
       ref={machineRef}
-      className="relative mx-auto w-full max-w-sm"
+      className="relative mx-auto flex h-full w-full max-w-[22rem] flex-col"
       animate={
         active
           ? { x: [0, -3, 3, -2, 2, 0], y: [0, 2, -2, 1, -1, 0] }
@@ -189,7 +274,7 @@ function Machine({
       transition={active ? { duration: 0.25, repeat: Infinity } : { duration: 0.3 }}
     >
       {/* hopper */}
-      <div className="relative mx-auto h-16 w-[85%]">
+      <div className="relative mx-auto h-10 w-[80%] shrink-0">
         <div
           className={`absolute inset-0 transition-colors duration-300 ${hovering ? "bg-orange-500" : "bg-neutral-700"}`}
           style={{ clipPath: "polygon(0 0, 100% 0, 78% 100%, 22% 100%)" }}
@@ -201,7 +286,7 @@ function Machine({
         <AnimatePresence>
           {phase === "idle" && (
             <motion.div
-              className="absolute inset-0 flex flex-col items-center justify-center text-xs tracking-[0.3em] text-orange-300"
+              className="absolute inset-0 flex items-center justify-center gap-2 pb-1 text-[10px] tracking-[0.3em] text-orange-300"
               initial={{ opacity: 0 }}
               animate={{ opacity: hovering ? 1 : [0.4, 1, 0.4] }}
               exit={{ opacity: 0 }}
@@ -218,7 +303,7 @@ function Machine({
 
       {/* chamber */}
       <motion.div
-        className="relative mx-auto h-64 overflow-hidden rounded-3xl border-2 bg-gradient-to-b from-neutral-900 to-black"
+        className="relative mx-auto min-h-[9rem] w-full flex-1 overflow-hidden rounded-3xl border-2 bg-gradient-to-b from-neutral-900 to-black"
         animate={{
           borderColor: hovering ? "#f97316" : active ? "#ef4444" : "#404040",
           boxShadow: active
@@ -247,7 +332,7 @@ function Machine({
             <motion.div
               key={item.id + phase.slice(0, 1)}
               className="absolute left-1/2 top-1/2 -ml-0 -mt-0 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-              initial={phase === "falling" ? { y: -260, scale: 1, opacity: 0 } : false}
+              initial={phase === "falling" ? { y: -150, scale: 1, opacity: 0 } : false}
               animate={
                 phase === "falling"
                   ? { y: 0, scale: 1, opacity: 1 }
@@ -286,7 +371,7 @@ function Machine({
         <AnimatePresence>
           {holeVisible && (
             <motion.div
-              className="absolute left-1/2 top-1/2 -ml-14 -mt-14 h-28 w-28"
+              className="absolute left-1/2 top-1/2 -ml-10 -mt-10 h-20 w-20"
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
@@ -304,7 +389,7 @@ function Machine({
                 animate={{ rotate: 360 }}
                 transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
               />
-              <div className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black shadow-[0_0_16px_6px_rgba(0,0,0,1)]" />
+              <div className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black shadow-[0_0_12px_5px_rgba(0,0,0,1)]" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -317,7 +402,7 @@ function Machine({
       </motion.div>
 
       {/* base panel */}
-      <div className="mx-auto mt-2 flex w-[92%] items-center justify-between rounded-xl border border-neutral-700 bg-neutral-900 px-5 py-3">
+      <div className="mx-auto mt-1.5 flex w-[92%] shrink-0 items-center justify-between rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-2">
         <div className="flex gap-2">
           {[0, 1, 2].map((i) => (
             <motion.span
@@ -331,7 +416,7 @@ function Machine({
             />
           ))}
         </div>
-        <span className="font-spacemono text-sm tracking-widest text-orange-300">{STATUS[phase]}</span>
+        <span className="font-spacemono text-xs tracking-widest text-orange-300">{STATUS[phase]}</span>
       </div>
     </motion.div>
   );
@@ -354,9 +439,9 @@ export default function BlackHoleMaker() {
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
-  // Bring the result into view once the collapse finishes.
+  // On small screens the result is below the fold, so bring it into view.
   useEffect(() => {
-    if (phase !== "done") return;
+    if (phase !== "done" || window.matchMedia("(min-width: 1024px)").matches) return;
     const t = setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 300);
     return () => clearTimeout(t);
   }, [phase]);
@@ -389,70 +474,27 @@ export default function BlackHoleMaker() {
   });
 
   return (
-    <section id="machine" className="relative px-6 py-16 md:px-16">
-      <motion.div
-        className="mx-auto mb-10 max-w-2xl text-center"
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.8 }}
-      >
-        <h2 className="text-4xl font-bold md:text-5xl">
-          The <span className="text-orange-500">Black Hole</span> Maker
-        </h2>
-        <p className="mt-4 text-gray-400">
-          Squeeze anything small enough and it becomes a black hole. Drag your avatar, or something
-          bigger, into the machine and watch it collapse.
-        </p>
-      </motion.div>
-
-      <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2">
-        {/* machine + result */}
-        <div className="order-first lg:order-last">
-          <Machine
-            machineRef={machineRef}
-            item={item}
-            weight={weightValid ? weight : 70}
-            phase={phase}
-            hovering={hovering && !busy}
-          />
-
-          <div ref={resultRef} className="mt-6 min-h-48 text-center" aria-live="polite">
-            <AnimatePresence>
-              {result && item && (
-                <motion.div
-                  key={item.id + "result"}
-                  className="rounded-2xl border border-white/10 bg-neutral-900/80 p-5"
-                  initial={{ opacity: 0, y: 24, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 12 }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                >
-                  <p className="text-sm text-gray-400">
-                    {subject(item)} <span className="text-white">({formatMass(item.mass)})</span> would become a
-                    black hole with a radius of
-                  </p>
-                  <div className="mt-2">
-                    <RadiusReadout radius={result.radius} />
-                  </div>
-                  <motion.button
-                    className="mt-4 rounded-lg border border-orange-500/60 px-5 py-1.5 text-sm text-orange-300 transition-colors hover:bg-orange-500 hover:text-white"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={reset}
-                  >
-                    Make another
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* avatar + objects. z-20 keeps a dragged tile above the machine. */}
-        <div className="relative z-20 flex flex-col gap-10">
+    <section id="machine" className="relative px-6 py-8 md:px-12 lg:h-svh lg:min-h-[700px] lg:py-6">
+      <div className="mx-auto grid h-full max-w-6xl gap-x-10 gap-y-5 lg:grid-cols-2 lg:grid-rows-[auto_minmax(0,1fr)]">
+        {/* heading + avatar (top left) */}
+        <div className="flex flex-col gap-3 lg:col-start-1 lg:row-start-1">
           <motion.div
-            className="flex items-center gap-8 rounded-2xl border border-white/10 bg-neutral-900/60 p-6"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 0.7 }}
+          >
+            <h2 className="text-2xl font-bold md:text-3xl">
+              The <span className="text-orange-500">Black Hole</span> Maker
+            </h2>
+            <p className="mt-1.5 text-sm leading-snug text-gray-400">
+              Squeeze anything small enough and it becomes a black hole. Drag your avatar, or something
+              bigger, into the machine and watch it collapse.
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="flex items-center gap-5 rounded-2xl border border-white/10 bg-neutral-900/60 px-4 py-3"
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -461,15 +503,15 @@ export default function BlackHoleMaker() {
             <Draggable
               {...drag({ id: "avatar", name: "You", emoji: "🧍", mass: weightValid ? weight : 70 })}
               disabled={busy || !weightValid}
-              className="flex h-40 w-24 shrink-0 items-end justify-center"
+              className="flex h-24 w-16 shrink-0 items-end justify-center"
             >
-              <Avatar weight={weightValid ? weight : 70} className="h-40 w-auto" />
+              <Avatar weight={weightValid ? weight : 70} className="h-24 w-auto" />
             </Draggable>
             <div className="flex-1">
-              <label htmlFor="weight" className="text-lg font-semibold">
+              <label htmlFor="weight" className="text-base font-semibold">
                 Your weight
               </label>
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-1.5 flex items-center gap-2">
                 <input
                   id="weight"
                   type="number"
@@ -477,49 +519,100 @@ export default function BlackHoleMaker() {
                   step="any"
                   value={weightText}
                   onChange={(e) => setWeightText(e.target.value)}
-                  className="w-28 rounded-lg p-3 text-center text-black transition-shadow focus:outline-none focus:ring-4 focus:ring-red-500"
+                  className="w-24 rounded-lg p-2 text-center text-base text-black transition-shadow focus:outline-none focus:ring-4 focus:ring-red-500"
                 />
-                <span className="text-gray-400">kg</span>
+                <span className="text-sm text-gray-400">kg</span>
               </div>
-              <p className="mt-3 text-sm text-gray-500">
+              <p className="mt-1.5 text-xs text-gray-500">
                 {weightValid ? "Now drag your avatar into the machine." : "Enter a weight above zero."}
               </p>
             </div>
           </motion.div>
+        </div>
 
-          <div className="flex flex-col gap-6">
-            {GROUPS.map((group) => (
-              <div key={group.title}>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-widest text-gray-400">
-                  {group.title}
-                </h3>
-                <motion.div
-                  className="grid grid-cols-3 gap-2 sm:grid-cols-5"
-                  initial="hidden"
-                  whileInView="show"
-                  viewport={{ once: true }}
-                  transition={{ staggerChildren: 0.05 }}
-                >
-                  {group.items.map((o) => (
-                    <motion.div
-                      key={o.id}
-                      variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
-                    >
+        {/* machine (top right): as tall as the heading + avatar beside it */}
+        <div className="order-first lg:order-none lg:col-start-2 lg:row-start-1">
+          <Machine
+            machineRef={machineRef}
+            item={item}
+            weight={weightValid ? weight : 70}
+            phase={phase}
+            hovering={hovering && !busy}
+          />
+        </div>
+
+        {/* scrolling tray (bottom left) */}
+        <div className="flex max-h-[24rem] min-h-0 flex-col rounded-2xl border border-white/10 bg-neutral-900/40 lg:col-start-1 lg:row-start-2 lg:max-h-none">
+          <h3 className="shrink-0 px-4 pt-3 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">
+            …or pick something bigger
+          </h3>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-color:#525252_transparent] [scrollbar-width:thin]">
+            <div className="flex flex-col gap-5">
+              {GROUPS.map((group) => (
+                <div key={group.title}>
+                  <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-orange-400/80">
+                    {group.title}
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                    {group.items.map((o) => (
                       <Draggable
+                        key={o.id}
                         {...drag(o)}
-                        className="flex h-full flex-col items-center rounded-xl border border-white/10 bg-neutral-900/60 px-1.5 py-2 hover:border-orange-500/60"
+                        className="flex h-full flex-col items-center rounded-xl border border-white/10 bg-neutral-900 px-1 py-2 hover:border-orange-500/60"
                       >
                         <span className="text-3xl leading-none">{o.emoji}</span>
                         <span className="mt-1.5 text-center text-[11px] leading-tight text-gray-300">{o.name}</span>
                         <span className="text-[9px] text-gray-500">{formatMass(o.mass)}</span>
                       </Draggable>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              </div>
-            ))}
-            <p className="text-xs text-gray-600">Star masses are estimates and vary between studies.</p>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-gray-600">Star masses are estimates and vary between studies.</p>
+            </div>
           </div>
+        </div>
+
+        {/* result (bottom right) */}
+        <div ref={resultRef} className="min-h-0 text-center lg:col-start-2 lg:row-start-2" aria-live="polite">
+          <AnimatePresence mode="wait">
+            {result && item ? (
+              <motion.div
+                key={item.id + "result"}
+                className="rounded-2xl border border-white/10 bg-neutral-900/80 p-4"
+                initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+              >
+                <p className="text-sm text-gray-400">
+                  {subject(item)} <span className="text-white">({formatMass(item.mass)})</span> would become a
+                  black hole with a radius of
+                </p>
+                <div className="mt-2">
+                  <RadiusReadout radius={result.radius} />
+                </div>
+                <motion.button
+                  className="mt-3 rounded-lg border border-orange-500/60 px-5 py-1.5 text-sm text-orange-300 transition-colors hover:bg-orange-500 hover:text-white"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={reset}
+                >
+                  Make another
+                </motion.button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="placeholder"
+                className="flex h-full min-h-24 items-center justify-center rounded-2xl border border-dashed border-white/10 px-6 text-sm text-gray-600"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {busy ? "Compressing…" : "Your black hole's size will appear here."}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </section>
